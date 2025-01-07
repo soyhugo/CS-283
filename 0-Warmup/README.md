@@ -37,6 +37,10 @@ Please provide answers to these questions using markdown notation and place them
 3. Please provide a link to the repository you are using for this class.
 https://github.com/soyhugo/CS-283
 4. Briefly describe what you want to get out of this class.
+
     I want to deepen my understanding of Linux and become proficient in using tools like git, gcc, and gdb for software development.
+
 5. Briefly describe any concerns you might be having with being successful in this class (if any).
+
     My main concern is staying consistent with coursework, but I am committed to managing my time effectively.
+
