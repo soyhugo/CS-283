@@ -139,15 +139,6 @@ int replace_word(char *buff, int str_len, char *target, char *replacement) {
     while (pos < buff + str_len - target_len + 1) {
         if (*pos == *target && strncmp(pos, target, target_len) == 0) {
             int new_str_len = str_len - target_len + replacement_len;
-
-            if (new_str_len > BUFFER_SZ) {
-                printf("Warning: Replacement truncated to fit buffer size.\n");
-                int temp_replacement_len = BUFFER_SZ - (str_len - target_len);
-                memmove(pos + temp_replacement_len, pos + target_len, str_len - (pos - buff) - target_len);
-                memcpy(pos, replacement, temp_replacement_len);
-                return BUFFER_SZ;
-            }
-
             memmove(pos + replacement_len, pos + target_len, str_len - (pos - buff) - target_len);
             memcpy(pos, replacement, replacement_len);
             return new_str_len;
@@ -168,7 +159,10 @@ int main(int argc, char *argv[]){
     int  user_str_len;      //length of user supplied string
 
     //TODO:  #1. WHY IS THIS SAFE, aka what if arv[1] does not exist?
-    //      PLACE A COMMENT BLOCK HERE EXPLAINING
+    //       It's safe because it ensures the program does not attempt to access argv[1] unless it exists. 
+    //       If the user does not provide enough arguments (argc < 2), attempting to dereference argv[1] would lead to 
+    //       undefined behavior, likely causing a segmentation fault. By checking argc < 2 first, we ensure that argv[1] is 
+    //       valid and accessible before dereferencing it.
     if ((argc < 2) || (*argv[1] != '-')){
         usage(argv[0]);
         exit(1);
@@ -185,7 +179,12 @@ int main(int argc, char *argv[]){
     //WE NOW WILL HANDLE THE REQUIRED OPERATIONS
 
     //TODO:  #2 Document the purpose of the if statement below
-    //      PLACE A COMMENT BLOCK HERE EXPLAINING
+    //      The purpose of the if (argc < 3) statement is to verify that the user has provided the 
+    //      required input string for the selected option. The program expects at least three arguments: the program
+    //      name (argv[0]), the operation flag (argv[1]), and the input string (argv[2]). Without the input string, most of 
+    //      the program’s functionality cannot proceed. 
+    //      By checking argc < 3, the program avoids undefined behavior caused by accessing argv[2] when it does not exist.
+    
     if (argc < 3){
         usage(argv[0]);
         exit(1);
@@ -269,3 +268,11 @@ int main(int argc, char *argv[]){
 //          the buff variable will have exactly 50 bytes?
 //  
 //          PLACE YOUR ANSWER HERE
+//          Even though the buff is always allocated to have 50 bytes (BUFFER_SZ), passing both the pointer and 
+//          the length to functions is a good practice because it makes the code more flexible and safer. If in the future the 
+//          buffer size needs to change or if different sizes are used for other parts of the program, the functions will still 
+//          work without requiring extra modifications. Also, explicitly passing the length makes it clear how much of the buffer 
+//          is valid to process, which helps prevent bugs like buffer overflows. Lastly, it makes the code easier to understand 
+//          since the size of the buffer is not hidden or assumed, and someone reading the code knows exactly how much memory is 
+//          available to work with. This is important in C because mistakes with memory can cause crashes or security vulnerabilities.
+
