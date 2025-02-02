@@ -76,7 +76,7 @@ int get_student(int fd, int id, student_t *s)
         return ERR_DB_FILE;
     }
     if(bytesRead != sizeof(student_t) ||
-       memcmp(&temp, EMPTY_STUDENT_RECORD, sizeof(student_t)) == 0) {
+       memcmp(&temp, &EMPTY_STUDENT_RECORD, sizeof(student_t)) == 0) {
         return SRCH_NOT_FOUND;
     }
 
@@ -125,8 +125,8 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
     }
 
     if(bytesRead == sizeof(student_t) &&
-       memcmp(&existing, EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
-        printf(M_ERR_DB_ADD_DUP);
+       memcmp(&existing, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+        printf(M_ERR_DB_ADD_DUP, id);
         return ERR_DB_OP;
     }
 
@@ -149,7 +149,7 @@ int add_student(int fd, int id, char *fname, char *lname, int gpa)
         printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
     }
-    printf(M_STD_ADDED);
+    printf(M_STD_ADDED, id);
     return NO_ERROR;
 }
 
@@ -188,12 +188,12 @@ int del_student(int fd, int id)
         printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
     }
-    ssize_t bytesWritten = write(fd, EMPTY_STUDENT_RECORD, sizeof(student_t));
+    ssize_t bytesWritten = write(fd, &EMPTY_STUDENT_RECORD, sizeof(student_t));
     if(bytesWritten != sizeof(student_t)) {
         printf(M_ERR_DB_WRITE);
         return ERR_DB_FILE;
     }
-    printf(M_STD_DEL_MSG);
+    printf(M_STD_DEL_MSG, id);
     return NO_ERROR;
 }
 
@@ -232,7 +232,7 @@ int count_db_records(int fd)
     int count = 0;
     ssize_t bytesRead;
     while ((bytesRead = read(fd, &temp, sizeof(student_t))) == sizeof(student_t)) {
-        if (memcmp(&temp, EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
+        if (memcmp(&temp, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0)
             count++;
     }
     if(bytesRead < 0) {
@@ -291,7 +291,7 @@ int print_db(int fd)
     ssize_t bytesRead;
     bool foundAny = false;
     while ((bytesRead = read(fd, &student, sizeof(student_t))) == sizeof(student_t)) {
-        if (memcmp(&student, EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+        if (memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
             if(!printedHeader){
                 printf(STUDENT_PRINT_HDR_STRING, "ID", "FIRST NAME", "LAST_NAME", "GPA");
                 printedHeader = true;
@@ -426,7 +426,7 @@ int compress_db(int fd)
         if(bytesRead != sizeof(student_t))
             continue; 
 
-        if(memcmp(&student, EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
+        if(memcmp(&student, &EMPTY_STUDENT_RECORD, sizeof(student_t)) != 0) {
             if(lseek(temp_fd, offset, SEEK_SET) == (off_t)-1) {
                 printf(M_ERR_DB_WRITE);
                 close(temp_fd);
@@ -441,7 +441,19 @@ int compress_db(int fd)
             highestOffset = offset;
         }
     }
-
+    
+    if(highestOffset == 0) {
+        if(ftruncate(fd, 0) == -1) {
+            printf(M_ERR_DB_WRITE);
+            close(temp_fd);
+            return ERR_DB_FILE;
+        }
+        close(temp_fd);
+        printf(M_DB_COMPRESSED_OK);
+        lseek(fd, 0, SEEK_SET);
+        return fd;
+    }
+    
     if(highestOffset > 0) {
         if(ftruncate(temp_fd, highestOffset + sizeof(student_t)) == -1) {
             printf(M_ERR_DB_WRITE);
@@ -471,6 +483,7 @@ int compress_db(int fd)
         return ERR_DB_FILE;
     }
     printf(M_DB_COMPRESSED_OK);
+    printf("Database successfully compressed!\n");
     close(temp_fd);
     return new_fd;
 }
