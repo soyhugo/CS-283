@@ -31,7 +31,6 @@ int exec_remote_cmd_loop(char *address, int port) {
 
         cmd_buffer[strcspn(cmd_buffer, "\n")] = '\0';
 
-        // Handle exit command
         if (strcmp(cmd_buffer, "exit") == 0) {
             printf("Exiting client...\n");
             break;

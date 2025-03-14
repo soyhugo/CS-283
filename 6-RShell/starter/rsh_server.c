@@ -49,29 +49,29 @@ int boot_server(char *ifaces, int port) {
     struct sockaddr_in server_addr;
     int opt = 1;
 
-    // Create socket
+    // Create a TCP socket
     server_sock = socket(AF_INET, SOCK_STREAM, 0);
     if (server_sock == -1) {
         perror("socket");
         return ERR_RDSH_COMMUNICATION;
     }
 
-    // Allow port reuse
+    // Allow reusing the port immediately after the server stops
     setsockopt(server_sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
-    // Configure server address
+    // Configure the server address structure
     server_addr.sin_family = AF_INET;
     server_addr.sin_addr.s_addr = inet_addr(ifaces);
     server_addr.sin_port = htons(port);
 
-    // Bind socket
+    // Bind the socket to the specified address and port
     if (bind(server_sock, (struct sockaddr *)&server_addr, sizeof(server_addr)) == -1) {
         perror("bind");
         close(server_sock);
         return ERR_RDSH_COMMUNICATION;
     }
 
-    // Start listening
+    // Start listening for incoming client connections
     if (listen(server_sock, 5) == -1) {
         perror("listen");
         close(server_sock);
@@ -124,10 +124,9 @@ int exec_client_requests(int cli_socket) {
             break;
         }
 
-        buffer[bytes_received] = '\0';  // Null-terminate the command
-        printf("Executing command: %s\n", buffer);  // Debugging output
+        buffer[bytes_received] = '\0';
+        printf("Executing command: %s\n", buffer);
 
-        // Handle built-in commands
         if (strcmp(buffer, "stop-server") == 0) {
             close(cli_socket);
             return OK_EXIT;
@@ -147,24 +146,24 @@ int exec_client_requests(int cli_socket) {
             continue;
         }
 
-        // Fork to execute command
+        // Create a child process to execute the command
         pid_t pid = fork();
         if (pid == 0) {  // Child process
-            // Redirect stdout and stderr to the client socket
+            // Redirect standard output and standard error to the client socket
             dup2(cli_socket, STDOUT_FILENO);
             dup2(cli_socket, STDERR_FILENO);
 
-            // Close unused descriptors
+            // Close the client socket in the child process as it's no longer needed
             close(cli_socket);
 
             // Execute the command pipeline
             execute_pipeline(&cmd_list);
 
-            // Flush stdout and stderr to ensure all output is sent to the client
+            // Ensure all output is sent to the client before exiting
             fflush(stdout);
             fflush(stderr);
 
-            exit(0);  // Exit child process after execution
+            exit(0);  // Terminate the child process
         } 
         else if (pid > 0) {  // Parent process
             waitpid(pid, NULL, 0);

@@ -8,7 +8,7 @@
 #include <sys/wait.h>
 #include "dshlib.h"
 
-// Allocate memory for a cmd_buff_t structure
+// Allocates and initializes a cmd_buff_t structure with default values
 int alloc_cmd_buff(cmd_buff_t *cmd_buff) {
     cmd_buff->argc = 0;
     cmd_buff->_cmd_buffer = NULL;
@@ -18,7 +18,7 @@ int alloc_cmd_buff(cmd_buff_t *cmd_buff) {
     return OK;
 }
 
-// Free memory allocated for a cmd_buff_t structure
+// Frees memory allocated for the arguments and command buffer in cmd_buff_t
 int free_cmd_buff(cmd_buff_t *cmd_buff) {
     for (int i = 0; i < cmd_buff->argc; i++) {
         free(cmd_buff->argv[i]);
@@ -31,13 +31,13 @@ int free_cmd_buff(cmd_buff_t *cmd_buff) {
     return OK;
 }
 
-// Clears a command buffer by freeing its memory and reinitializing it
+// Clears a cmd_buff_t structure by freeing its memory and reinitializing it
 int clear_cmd_buff(cmd_buff_t *cmd_buff) {
     free_cmd_buff(cmd_buff);
     return alloc_cmd_buff(cmd_buff);
 }
 
-// Build a command buffer by parsing a command line string
+// Tokenizes a command line string into individual arguments and stores them in cmd_buff_t
 int build_cmd_buff(char *cmd_line, cmd_buff_t *cmd_buff) {
     clear_cmd_buff(cmd_buff);
     char *p = cmd_line;
@@ -196,34 +196,34 @@ int exec_local_cmd_loop()
 
     while (1)
     {
-        // Print shell prompt
+        // Display the shell prompt
         printf("%s", SH_PROMPT);
 
-        // Read input from user
+        // Read user input
         if (fgets(input_line, sizeof(input_line), stdin) == NULL)
         {
             printf("\n");
             break;
         }
 
-        // Remove newline character
+        // Remove the trailing newline character
         input_line[strcspn(input_line, "\n")] = '\0';
 
-        // Handle empty input
+        // Ignore empty input
         if (strlen(input_line) == 0)
         {
             printf("%s\n", CMD_WARN_NO_CMD);
             continue;
         }
 
-        // Handle exit command
+        // Check for exit command
         if (strcmp(input_line, EXIT_CMD) == 0)
         {
             printf("exiting...\n");
             break;
         }
 
-        // Parse commands into a pipeline
+        // Parse user input into a structured command list
         rc = build_cmd_list(input_line, &cmd_list);
         if (rc != OK)
         {
@@ -234,14 +234,14 @@ int exec_local_cmd_loop()
             continue;
         }
 
-        // Execute the command pipeline
+        // Execute the parsed commands
         rc = execute_pipeline(&cmd_list);
         if (rc != OK)
         {
             printf("%s\n", CMD_ERR_EXECUTE);
         }
 
-        // Free command list memory
+        // Free allocated memory for the command list
         free_cmd_list(&cmd_list);
     }
     return OK;
