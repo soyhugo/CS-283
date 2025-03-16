@@ -133,48 +133,71 @@ int exec_client_requests(int cli_socket) {
         } else if (strncmp(buffer, "cd ", 3) == 0) {
             char *dir = buffer + 3;
             if (chdir(dir) == 0) {
-                send_message_string(cli_socket, "Directory changed.");
+                send_message_string(cli_socket, "Directory changed.\n");
             } else {
-                send_message_string(cli_socket, "Failed to change directory.");
+                send_message_string(cli_socket, "Failed to change directory.\n");
             }
             continue;
         }
 
         command_list_t cmd_list;
         if (build_cmd_list(buffer, &cmd_list) != OK) {
-            send_message_string(cli_socket, "Invalid command.");
+            send_message_string(cli_socket, "Invalid command.\n");
+            continue;
+        }
+
+        // Create pipes for capturing command output
+        int pipefd[2];
+        if (pipe(pipefd) == -1) {
+            perror("pipe");
+            send_message_string(cli_socket, "Failed to create pipe for command execution.");
+            free_cmd_list(&cmd_list);
             continue;
         }
 
         // Create a child process to execute the command
         pid_t pid = fork();
         if (pid == 0) {  // Child process
-            // Redirect standard output and standard error to the client socket
-            dup2(cli_socket, STDOUT_FILENO);
-            dup2(cli_socket, STDERR_FILENO);
-
-            // Close the client socket in the child process as it's no longer needed
-            close(cli_socket);
+            close(pipefd[0]); // Close read end of pipe
+            
+            // Redirect standard output and standard error to the pipe
+            dup2(pipefd[1], STDOUT_FILENO);
+            dup2(pipefd[1], STDERR_FILENO);
+            close(pipefd[1]); // Close duplicate of the pipe
 
             // Execute the command pipeline
             execute_pipeline(&cmd_list);
 
-            // Ensure all output is sent to the client before exiting
+            // Ensure all output is sent before exiting
             fflush(stdout);
             fflush(stderr);
-
+            
             exit(0);  // Terminate the child process
         } 
         else if (pid > 0) {  // Parent process
+            close(pipefd[1]); // Close write end of pipe
+            
+            // Read from pipe and send to client
+            char output_buffer[RDSH_COMM_BUFF_SZ];
+            ssize_t bytes_read;
+            
+            while ((bytes_read = read(pipefd[0], output_buffer, sizeof(output_buffer) - 1)) > 0) {
+                output_buffer[bytes_read] = '\0';
+                send(cli_socket, output_buffer, bytes_read, 0);
+            }
+            
+            close(pipefd[0]); // Close read end of pipe
             waitpid(pid, NULL, 0);
+            send_message_eof(cli_socket);  // Signal end of response
         } 
         else {  // Fork failed
             perror("fork");
+            close(pipefd[0]);
+            close(pipefd[1]);
             send_message_string(cli_socket, "Failed to execute command.");
         }
 
         free_cmd_list(&cmd_list);
-        send_message_eof(cli_socket);  // Signal end of response
     }
     return OK;
 }
@@ -196,7 +219,7 @@ int send_message_eof(int cli_socket)
  */
 int send_message_string(int cli_socket, char *buff)
 {
-    int len = strlen(buff) + 1; // +1 to include null terminator
+    int len = strlen(buff);
     if (send(cli_socket, buff, len, 0) < 0)
     {
         return ERR_RDSH_COMMUNICATION;
